@@ -27,17 +27,11 @@ module FastMcpJwtAuth
     Rails.logger
   end
 
-  # DRY logging with consistent prefix
-  def self.log_debug(message)
-    logger&.debug "FastMcpJwtAuth: #{message}"
-  end
-
-  def self.log_info(message)
-    logger&.info "FastMcpJwtAuth: #{message}"
-  end
-
-  def self.log_warn(message)
-    logger&.warn "FastMcpJwtAuth: #{message}"
+  # DRY logging with consistent prefix - Ruby metaprogramming way
+  %i[debug info warn error].each do |level|
+    define_singleton_method("log_#{level}") do |message|
+      logger&.public_send(level, "FastMcpJwtAuth: #{message}")
+    end
   end
 end
 

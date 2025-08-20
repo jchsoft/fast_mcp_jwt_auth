@@ -2,6 +2,7 @@
 
 require "test_helper"
 
+# rubocop:disable Metrics/ClassLength
 class TestRackTransportPatch < Minitest::Test
   def setup
     FastMcpJwtAuth.configuration = nil
@@ -67,6 +68,76 @@ class TestRackTransportPatch < Minitest::Test
     transport.handle_mcp_request(request, {})
 
     verify_jwt_authentication_success(callbacks, mock_user, captured_user, transport)
+  end
+
+  def test_jwt_decoder_returns_nil
+    transport = create_configured_transport
+
+    # Configure decoder that returns nil
+    FastMcpJwtAuth.configure do |config|
+      config.jwt_decoder = ->(_token) {}
+    end
+    FastMcpJwtAuth::RackTransportPatch.apply_patch!
+
+    request = MockRequest.new({ "HTTP_AUTHORIZATION" => "Bearer invalid_token" })
+    transport.handle_mcp_request(request, {})
+
+    assert_equal 1, transport.handled_requests.length
+    assert_nil Current.user
+  end
+
+  def test_token_validator_returns_false
+    transport = create_configured_transport
+
+    # Configure validator that always returns false
+    FastMcpJwtAuth.configure do |config|
+      config.jwt_decoder = ->(_token) { { user_id: 123 } }
+      config.token_validator = ->(_decoded) { false }
+      config.user_finder = ->(decoded) { { id: decoded[:user_id] } }
+    end
+    FastMcpJwtAuth::RackTransportPatch.apply_patch!
+
+    request = MockRequest.new({ "HTTP_AUTHORIZATION" => "Bearer valid_token" })
+    transport.handle_mcp_request(request, {})
+
+    assert_equal 1, transport.handled_requests.length
+    assert_nil Current.user
+  end
+
+  def test_user_finder_returns_nil
+    transport = create_configured_transport
+
+    # Configure finder that returns nil
+    FastMcpJwtAuth.configure do |config|
+      config.jwt_decoder = ->(_token) { { user_id: 123 } }
+      config.token_validator = ->(_decoded) { true }
+      config.user_finder = ->(_decoded) {}
+    end
+    FastMcpJwtAuth::RackTransportPatch.apply_patch!
+
+    request = MockRequest.new({ "HTTP_AUTHORIZATION" => "Bearer valid_token" })
+    transport.handle_mcp_request(request, {})
+
+    assert_equal 1, transport.handled_requests.length
+    assert_nil Current.user
+  end
+
+  def test_authentication_with_no_callbacks_configured
+    transport = create_configured_transport
+
+    # No callbacks configured - should skip authentication
+    FastMcpJwtAuth.configure do |config|
+      config.jwt_decoder = nil
+      config.user_finder = nil
+      config.token_validator = nil
+    end
+    FastMcpJwtAuth::RackTransportPatch.apply_patch!
+
+    request = MockRequest.new({ "HTTP_AUTHORIZATION" => "Bearer valid_token" })
+    transport.handle_mcp_request(request, {})
+
+    assert_equal 1, transport.handled_requests.length
+    assert_nil Current.user
   end
 
   private
@@ -138,3 +209,4 @@ class TestRackTransportPatch < Minitest::Test
     transport
   end
 end
+# rubocop:enable Metrics/ClassLength

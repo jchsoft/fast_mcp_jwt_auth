@@ -17,11 +17,13 @@ class TestRackTransportPatch < Minitest::Test
 
   def test_patch_is_applied
     create_configured_transport
+
     assert_predicate FastMcpJwtAuth::RackTransportPatch, :patch_applied?
   end
 
   def test_transport_has_patched_methods
     transport = create_configured_transport
+
     assert_respond_to transport, :handle_mcp_request
   end
 
@@ -51,6 +53,7 @@ class TestRackTransportPatch < Minitest::Test
     # When disabled, patch is not applied at all
     FastMcpJwtAuth.configure { |c| c.enabled = false }
     FastMcpJwtAuth::RackTransportPatch.apply_patch!
+
     refute_predicate FastMcpJwtAuth::RackTransportPatch, :patch_applied?
   end
 

@@ -71,7 +71,7 @@ module FastMcpJwtAuth
         return unless token_valid?(decoded_token)
 
         user = find_user_from_token(decoded_token)
-        set_current_user(user) if user
+        assign_current_user(user) if user
       end
 
       def token_valid?(decoded_token)
@@ -88,7 +88,7 @@ module FastMcpJwtAuth
         user
       end
 
-      def set_current_user(user)
+      def assign_current_user(user)
         FastMcpJwtAuth.config.current_user_setter&.call(user)
       end
 

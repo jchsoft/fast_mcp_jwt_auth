@@ -61,12 +61,12 @@ class TestRackTransportPatch < Minitest::Test
     mock_user = { id: 123, email: "test@example.com" }
     captured_user = nil
     callbacks = setup_authentication_callbacks(mock_user) { |user| captured_user = user }
-    
+
     transport = create_authenticated_transport(callbacks)
     request = MockRequest.new({ "HTTP_AUTHORIZATION" => "Bearer valid_token" })
     transport.handle_mcp_request(request, {})
 
-    verify_authentication_success(callbacks, mock_user, captured_user, transport)
+    verify_jwt_authentication_success(callbacks, mock_user, captured_user, transport)
   end
 
   private
@@ -78,12 +78,13 @@ class TestRackTransportPatch < Minitest::Test
       token_validator_called: false,
       jwt_decoder: lambda do |token|
         return { user_id: 123, exp: nil } if token == "valid_token"
+
         nil
       end,
       user_finder: lambda do |decoded|
         decoded[:user_id] == 123 ? mock_user : nil
       end,
-      token_validator: lambda { true },
+      token_validator: -> { true },
       user_capture: user_capture
     }
   end
@@ -127,8 +128,6 @@ class TestRackTransportPatch < Minitest::Test
     assert_equal 1, transport.handled_requests.length
     assert_nil Current.user
   end
-
-  private
 
   def create_configured_transport(enabled: true)
     FastMcpJwtAuth.configure { |c| c.enabled = enabled }

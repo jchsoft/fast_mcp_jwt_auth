@@ -8,28 +8,30 @@ module FastMcpJwtAuth
   module RackTransportPatch
     @patch_applied = false
 
+    # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     def self.apply_patch!
       if @patch_applied
-        FastMcpJwtAuth.log_debug "RackTransport patch already applied, skipping"
+        FastMcpJwtAuth.logger&.debug "FastMcpJwtAuth: RackTransport patch already applied, skipping"
         return
       end
 
       unless defined?(FastMcp::Transports::RackTransport)
-        FastMcpJwtAuth.log_debug "FastMcp::Transports::RackTransport not defined yet, skipping patch"
+        FastMcpJwtAuth.logger&.debug "FastMcpJwtAuth: FastMcp::Transports::RackTransport not defined yet, skipping patch"
         return
       end
 
       unless FastMcpJwtAuth.config.enabled
-        FastMcpJwtAuth.log_debug "JWT authentication disabled, skipping patch"
+        FastMcpJwtAuth.logger&.debug "FastMcpJwtAuth: JWT authentication disabled, skipping patch"
         return
       end
 
-      FastMcpJwtAuth.log_info "Applying JWT authentication patch to FastMcp::Transports::RackTransport"
+      FastMcpJwtAuth.logger&.info "FastMcpJwtAuth: Applying JWT authentication patch to FastMcp::Transports::RackTransport"
 
       patch_transport_class
       @patch_applied = true
-      FastMcpJwtAuth.log_info "JWT authentication patch applied successfully"
+      FastMcpJwtAuth.logger&.info "FastMcpJwtAuth: JWT authentication patch applied successfully"
     end
+    # rubocop:enable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
     def self.patch_transport_class
       FastMcp::Transports::RackTransport.prepend(JwtAuthenticationPatch)
@@ -54,22 +56,24 @@ module FastMcpJwtAuth
         auth_header = request.env["HTTP_AUTHORIZATION"]
         return unless auth_header&.start_with?("Bearer ")
 
-        auth_header.sub("Bearer ", "").tap do |jwt_token|
-          FastMcpJwtAuth.log_debug "Extracted JWT token from Authorization header"
-          authenticate_user_with_token(jwt_token)
-        end
+        jwt_token = auth_header.sub("Bearer ", "")
+        FastMcpJwtAuth.logger&.debug "FastMcpJwtAuth: Extracted JWT token from Authorization header"
+
+        authenticate_user_with_token(jwt_token)
       rescue StandardError => e
-        FastMcpJwtAuth.log_warn "JWT token authentication failed: #{e.message}"
+        FastMcpJwtAuth.logger&.warn "FastMcpJwtAuth: JWT token authentication failed: #{e.message}"
       end
 
       def authenticate_user_with_token(jwt_token)
         return unless FastMcpJwtAuth.config.jwt_decoder
 
-        FastMcpJwtAuth.config.jwt_decoder.call(jwt_token)&.tap do |decoded_token|
-          next unless token_valid?(decoded_token)
+        decoded_token = FastMcpJwtAuth.config.jwt_decoder.call(jwt_token)
+        return unless decoded_token
 
-          find_user_from_token(decoded_token)&.tap { |user| assign_current_user(user) }
-        end
+        return unless token_valid?(decoded_token)
+
+        user = find_user_from_token(decoded_token)
+        assign_current_user(user) if user
       end
 
       def token_valid?(decoded_token)
@@ -81,9 +85,9 @@ module FastMcpJwtAuth
       def find_user_from_token(decoded_token)
         return unless FastMcpJwtAuth.config.user_finder
 
-        FastMcpJwtAuth.config.user_finder.call(decoded_token)&.tap do |user|
-          FastMcpJwtAuth.log_debug "Authenticated user: #{user}"
-        end
+        user = FastMcpJwtAuth.config.user_finder.call(decoded_token)
+        FastMcpJwtAuth.logger&.debug "FastMcpJwtAuth: Authenticated user: #{user}" if user
+        user
       end
 
       def assign_current_user(user)

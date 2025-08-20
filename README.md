@@ -55,7 +55,106 @@ The gem will:
 - ✅ **Use Rails.logger** for logging (no configuration required)
 - ✅ **Handle errors gracefully** with fallback to normal request processing
 
-### Configuration
+### MCP Server Configuration
+
+⚠️ **IMPORTANT**: This gem enables JWT authentication for your Rails application when used with the `fast_mcp` gem. For MCP clients to authenticate with your Rails app, they need to send JWT tokens in the `Authorization: Bearer` header.
+
+### Client-Side MCP Configuration 
+
+When your Rails app is running as an MCP server (using `fast_mcp` gem and `fast_mcp_jwt_auth` gem), MCP clients need to be configured with proper authentication headers to connect to it.
+
+For example create or update your `.mcp.json` configuration file:
+
+```bash
+cp .mcp.json.example .mcp.json
+```
+
+**Critical: The `headers` section with `Authorization: Bearer` is essential for JWT authentication:**
+
+```json
+{
+  "mcpServers": {
+    "your-rails-app": {
+      "type": "sse",
+      "name": "Your Rails MCP Server",
+      "url": "https://your-rails-app.com/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer ${JWT_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+### Real Example - WorkVector Integration
+
+```json
+{
+  "mcpServers": {
+    "workvector-production": {
+      "type": "sse",
+      "name": "WorkVector Production", 
+      "url": "https://workvector.com/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer ${WORKVECTOR_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+### Why Headers are Critical
+
+❌ **This WON'T work** - missing authentication:
+```json
+{
+  "mcpServers": {
+    "your-app": {
+      "type": "sse",
+      "url": "https://your-app.com/mcp/sse"
+    }
+  }
+}
+```
+
+✅ **This WILL work** - includes JWT authentication header:
+```json
+{
+  "mcpServers": {
+    "your-app": {
+      "type": "sse", 
+      "url": "https://your-app.com/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer ${JWT_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+### Environment Variables
+
+Use environment variables for sensitive tokens in your `.mcp.json`:
+
+- `${WORKVECTOR_TOKEN}` - Your WorkVector authentication token
+- `${MCP_JWT_TOKEN}` - JWT token for other MCP servers
+- `${PWD}` - Current working directory path
+
+Set these in your environment or `.env` file:
+
+```bash
+export WORKVECTOR_TOKEN="your_workvector_token_here"
+export MCP_JWT_TOKEN="your_jwt_token_here"
+```
+
+### Security Best Practices
+
+- ✅ **Never commit** `.mcp.json` to version control (it's in `.gitignore`)
+- ✅ **Use environment variables** for tokens instead of hardcoding them
+- ✅ **Keep tokens secure** and rotate them regularly
+- ✅ **Use the example file** as a template for new environments
+
+## Configuration
 
 Create an initializer to configure JWT decoding and user lookup:
 

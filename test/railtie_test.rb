@@ -22,7 +22,7 @@ class TestRailtie < Minitest::Test
   def test_railtie_applies_patch_when_enabled
     FastMcpJwtAuth.configure { |c| c.enabled = true }
 
-    FastMcpJwtAuth::Railtie.send(:apply_jwt_patch)
+    FastMcpJwtAuth::Railtie.apply_jwt_patch
 
     assert_predicate FastMcpJwtAuth::RackTransportPatch, :patch_applied?
     assert_includes @mock_logger.messages[:debug], "FastMcpJwtAuth: Attempting to apply RackTransport patch"
@@ -32,7 +32,7 @@ class TestRailtie < Minitest::Test
   def test_railtie_logs_disabled_status_when_disabled
     FastMcpJwtAuth.configure { |c| c.enabled = false }
 
-    FastMcpJwtAuth::Railtie.send(:log_disabled_status)
+    FastMcpJwtAuth::Railtie.log_disabled_status
 
     assert_includes @mock_logger.messages[:info], "FastMcpJwtAuth: JWT authentication disabled"
   end
@@ -41,15 +41,10 @@ class TestRailtie < Minitest::Test
     assert_equal Rails::Railtie, FastMcpJwtAuth::Railtie.superclass
   end
 
-  def test_private_methods_are_not_accessible
-    # Test that helper methods are properly private
-    assert_raises(NoMethodError) do
-      FastMcpJwtAuth::Railtie.apply_jwt_patch
-    end
-
-    assert_raises(NoMethodError) do
-      FastMcpJwtAuth::Railtie.log_disabled_status
-    end
+  def test_public_methods_are_accessible
+    # Test that helper methods are public and accessible
+    assert_respond_to FastMcpJwtAuth::Railtie, :apply_jwt_patch
+    assert_respond_to FastMcpJwtAuth::Railtie, :log_disabled_status
   end
 
   class MockLogger

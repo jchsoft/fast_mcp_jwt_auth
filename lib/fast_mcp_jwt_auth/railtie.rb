@@ -6,13 +6,11 @@ module FastMcpJwtAuth
     # Apply patch to FastMcp::Transports::RackTransport after all initializers are loaded
     initializer "fast_mcp_jwt_auth.apply_patch", after: :load_config_initializers do
       Rails.application.config.after_initialize do
-        FastMcpJwtAuth.config.enabled ? apply_jwt_patch : log_disabled_status
+        FastMcpJwtAuth.config.enabled ? FastMcpJwtAuth::Railtie.apply_jwt_patch : FastMcpJwtAuth::Railtie.log_disabled_status
       end
     end
 
     class << self
-      private
-
       def apply_jwt_patch
         FastMcpJwtAuth.log_debug "Attempting to apply RackTransport patch"
         FastMcpJwtAuth::RackTransportPatch.apply_patch!

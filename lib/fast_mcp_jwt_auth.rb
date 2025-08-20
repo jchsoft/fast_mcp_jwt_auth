@@ -26,6 +26,19 @@ module FastMcpJwtAuth
   def self.logger
     Rails.logger
   end
+
+  # DRY logging with consistent prefix
+  def self.log_debug(message)
+    logger&.debug "FastMcpJwtAuth: #{message}"
+  end
+
+  def self.log_info(message)
+    logger&.info "FastMcpJwtAuth: #{message}"
+  end
+
+  def self.log_warn(message)
+    logger&.warn "FastMcpJwtAuth: #{message}"
+  end
 end
 
 # Load patch after module is fully defined

@@ -10,25 +10,25 @@ module FastMcpJwtAuth
 
     def self.apply_patch!
       if @patch_applied
-        FastMcpJwtAuth.logger&.debug "FastMcpJwtAuth: RackTransport patch already applied, skipping"
+        FastMcpJwtAuth.log_debug "RackTransport patch already applied, skipping"
         return
       end
 
       unless defined?(FastMcp::Transports::RackTransport)
-        FastMcpJwtAuth.logger&.debug "FastMcpJwtAuth: FastMcp::Transports::RackTransport not defined yet, skipping patch"
+        FastMcpJwtAuth.log_debug "FastMcp::Transports::RackTransport not defined yet, skipping patch"
         return
       end
 
       unless FastMcpJwtAuth.config.enabled
-        FastMcpJwtAuth.logger&.debug "FastMcpJwtAuth: JWT authentication disabled, skipping patch"
+        FastMcpJwtAuth.log_debug "JWT authentication disabled, skipping patch"
         return
       end
 
-      FastMcpJwtAuth.logger&.info "FastMcpJwtAuth: Applying JWT authentication patch to FastMcp::Transports::RackTransport"
+      FastMcpJwtAuth.log_info "Applying JWT authentication patch to FastMcp::Transports::RackTransport"
 
       patch_transport_class
       @patch_applied = true
-      FastMcpJwtAuth.logger&.info "FastMcpJwtAuth: JWT authentication patch applied successfully"
+      FastMcpJwtAuth.log_info "JWT authentication patch applied successfully"
     end
 
     def self.patch_transport_class
@@ -54,24 +54,22 @@ module FastMcpJwtAuth
         auth_header = request.env["HTTP_AUTHORIZATION"]
         return unless auth_header&.start_with?("Bearer ")
 
-        jwt_token = auth_header.sub("Bearer ", "")
-        FastMcpJwtAuth.logger&.debug "FastMcpJwtAuth: Extracted JWT token from Authorization header"
-
-        authenticate_user_with_token(jwt_token)
+        auth_header.sub("Bearer ", "").tap do |jwt_token|
+          FastMcpJwtAuth.log_debug "Extracted JWT token from Authorization header"
+          authenticate_user_with_token(jwt_token)
+        end
       rescue StandardError => e
-        FastMcpJwtAuth.logger&.warn "FastMcpJwtAuth: JWT token authentication failed: #{e.message}"
+        FastMcpJwtAuth.log_warn "JWT token authentication failed: #{e.message}"
       end
 
       def authenticate_user_with_token(jwt_token)
         return unless FastMcpJwtAuth.config.jwt_decoder
 
-        decoded_token = FastMcpJwtAuth.config.jwt_decoder.call(jwt_token)
-        return unless decoded_token
+        FastMcpJwtAuth.config.jwt_decoder.call(jwt_token)&.tap do |decoded_token|
+          next unless token_valid?(decoded_token)
 
-        return unless token_valid?(decoded_token)
-
-        user = find_user_from_token(decoded_token)
-        assign_current_user(user) if user
+          find_user_from_token(decoded_token)&.tap { |user| assign_current_user(user) }
+        end
       end
 
       def token_valid?(decoded_token)
@@ -83,9 +81,9 @@ module FastMcpJwtAuth
       def find_user_from_token(decoded_token)
         return unless FastMcpJwtAuth.config.user_finder
 
-        user = FastMcpJwtAuth.config.user_finder.call(decoded_token)
-        FastMcpJwtAuth.logger&.debug "FastMcpJwtAuth: Authenticated user: #{user}" if user
-        user
+        FastMcpJwtAuth.config.user_finder.call(decoded_token)&.tap do |user|
+          FastMcpJwtAuth.log_debug "Authenticated user: #{user}"
+        end
       end
 
       def assign_current_user(user)

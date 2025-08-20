@@ -84,7 +84,7 @@ class TestRackTransportPatch < Minitest::Test
       user_finder: lambda do |decoded|
         decoded[:user_id] == 123 ? mock_user : nil
       end,
-      token_validator: -> { true },
+      token_validator: ->(_decoded) { true },
       user_capture: user_capture
     }
   end

@@ -25,6 +25,10 @@ Metrics/MethodLength:
 Metrics/AbcSize:
   Max: 35
 
+# Allow longer module for JWT authentication patch - it's a cohesive logical unit
+Metrics/ModuleLength:
+  Max: 130
+
 # Allow development dependencies in gemspec for gems
 Gemspec/DevelopmentDependencies:
   Enabled: false
